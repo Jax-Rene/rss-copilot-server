@@ -1,0 +1,11 @@
+spring:
+  task:
+    scheduling:
+      enabled: false
+  main:
+    banner-mode: off
+
+logging:
+  level:
+    root: WARN
+

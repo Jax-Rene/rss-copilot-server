@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: rss-copilot-server
+  datasource:
+    url: jdbc:sqlite:${RSS_COPILOT_DB_PATH:./rss-copilot.db}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+      connection-init-sql: PRAGMA foreign_keys=ON;
+  sql:
+    init:
+      mode: always
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+    default-fetch-size: 100
+    default-statement-timeout: 10
+
+app:
+  auth:
+    session-ttl-days: ${RSS_COPILOT_SESSION_TTL_DAYS:30}
+  refresh:
+    cron: ${RSS_COPILOT_REFRESH_CRON:0 0 * * * *}
+    connect-timeout-seconds: ${RSS_COPILOT_HTTP_CONNECT_TIMEOUT_SECONDS:10}
+    read-timeout-seconds: ${RSS_COPILOT_HTTP_READ_TIMEOUT_SECONDS:20}
+  bootstrap:
+    default-user:
+      email: ${RSS_COPILOT_DEFAULT_USER_EMAIL:demo@rsscopilot.local}
+      password: ${RSS_COPILOT_DEFAULT_USER_PASSWORD:changeme123}
+      display-name: ${RSS_COPILOT_DEFAULT_USER_DISPLAY_NAME:RSS Copilot Demo}
+      api-key: ${RSS_COPILOT_DEFAULT_USER_API_KEY:}
+  ai:
+    deepseek:
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      model: ${DEEPSEEK_MODEL:deepseek-chat}
+      connect-timeout-seconds: ${DEEPSEEK_CONNECT_TIMEOUT_SECONDS:10}
+      read-timeout-seconds: ${DEEPSEEK_READ_TIMEOUT_SECONDS:60}
+    defaults:
+      filter-prompt: |
+        你是一个 RSS 内容筛选助手。判断文章是否属于低价值噪音内容。
+        输出严格 JSON：
+        {"isNoise":boolean,"reason":"简短中文原因"}
+        判断标准默认偏向保守：如果无法确定，不要判为噪音。
+      summary-prompt: |
+        请基于正文生成一段中文摘要，保留事实和观点密度，长度控制在 120 字以内。
+      translation-prompt: |
+        请把文章按段落翻译成中文，输出严格 JSON 数组：
+        [{"source":"原文段落","translation":"中文译文"}]
+      output-language: zh-CN
