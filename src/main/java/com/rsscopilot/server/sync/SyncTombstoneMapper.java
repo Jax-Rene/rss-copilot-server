@@ -28,11 +28,13 @@ public interface SyncTombstoneMapper {
         FROM sync_tombstone
         WHERE user_id = #{userId}
           AND entity_type = #{entityType}
-          AND deleted_at > #{since}
-        ORDER BY deleted_at ASC, entity_id ASC
+          AND julianday(deleted_at) > julianday(#{since})
+          AND julianday(deleted_at) <= julianday(#{until})
+        ORDER BY julianday(deleted_at) ASC, entity_id ASC
         """)
-  List<Long> listDeletedIdsSince(
+  List<Long> listDeletedIdsBetween(
       @Param("userId") long userId,
       @Param("entityType") String entityType,
-      @Param("since") String since);
+      @Param("since") String since,
+      @Param("until") String until);
 }

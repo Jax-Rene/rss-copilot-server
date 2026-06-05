@@ -26,7 +26,8 @@ public interface UserSessionMapper {
         """)
   UserSession findByTokenHash(String tokenHash);
 
-  @Delete("""
+  @Delete(
+      """
         DELETE FROM user_session
         WHERE token_hash = #{tokenHash}
         """)

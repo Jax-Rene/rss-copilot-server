@@ -60,7 +60,22 @@ class ServerE2ETest {
   @Test
   void shouldPassMainWorkflowOverRealHttp() {
     String baseUrl = "http://localhost:" + port;
+
+    ResponseEntity<String> healthResponse =
+        testRestTemplate.getForEntity(baseUrl + "/api/health", String.class);
+    assertThat(healthResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(TestJson.parse(healthResponse.getBody()).path("service").asText())
+        .isEqualTo("rss-copilot-server");
+    assertThat(TestJson.parse(healthResponse.getBody()).path("apiVersion").asInt()).isEqualTo(1);
+
     String token = login(baseUrl);
+
+    ResponseEntity<String> meResponse =
+        testRestTemplate.exchange(
+            baseUrl + "/api/auth/me", HttpMethod.GET, authorizedEntity(token), String.class);
+    assertThat(meResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(TestJson.parse(meResponse.getBody()).path("email").asText())
+        .isEqualTo("demo@example.com");
 
     ResponseEntity<String> createResponse =
         testRestTemplate.exchange(
@@ -74,6 +89,8 @@ class ServerE2ETest {
     assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     assertThat(TestJson.parse(createResponse.getBody()).path("name").asText())
         .isEqualTo("Sample Feed");
+
+    long sourceId = TestJson.parse(createResponse.getBody()).path("id").asLong();
 
     ResponseEntity<String> refreshResponse =
         testRestTemplate.exchange(
@@ -95,7 +112,98 @@ class ServerE2ETest {
                       String.class);
               assertThat(feedResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
               assertThat(TestJson.parse(feedResponse.getBody()).path("items")).hasSize(1);
+              assertThat(
+                      TestJson.parse(feedResponse.getBody())
+                          .path("items")
+                          .get(0)
+                          .path("title")
+                          .asText())
+                  .isEqualTo("Long Analysis");
             });
+
+    ResponseEntity<String> feedResponse =
+        testRestTemplate.exchange(
+            baseUrl + "/api/entries?view=feed",
+            HttpMethod.GET,
+            authorizedEntity(token),
+            String.class);
+    long entryId = TestJson.parse(feedResponse.getBody()).path("items").get(0).path("id").asLong();
+
+    Awaitility.await()
+        .atMost(10, SECONDS)
+        .untilAsserted(
+            () -> {
+              ResponseEntity<String> detailResponse =
+                  testRestTemplate.exchange(
+                      baseUrl + "/api/entries/" + entryId,
+                      HttpMethod.GET,
+                      authorizedEntity(token),
+                      String.class);
+              assertThat(detailResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+              assertThat(TestJson.parse(detailResponse.getBody()).path("contentHtml").asText())
+                  .contains("First paragraph");
+              assertThat(TestJson.parse(detailResponse.getBody()).path("translationSegments"))
+                  .hasSize(2);
+            });
+
+    ResponseEntity<String> saveResponse =
+        testRestTemplate.exchange(
+            baseUrl + "/api/entries/" + entryId + "/saved",
+            HttpMethod.POST,
+            authorizedEntity(token),
+            String.class);
+    assertThat(saveResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+    ResponseEntity<String> progressResponse =
+        testRestTemplate.exchange(
+            baseUrl + "/api/entries/" + entryId + "/progress",
+            HttpMethod.POST,
+            authorizedJsonEntity(token, Map.of("progress", 0.42)),
+            String.class);
+    assertThat(progressResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+    ResponseEntity<String> progressedDetailResponse =
+        testRestTemplate.exchange(
+            baseUrl + "/api/entries/" + entryId,
+            HttpMethod.GET,
+            authorizedEntity(token),
+            String.class);
+    assertThat(progressedDetailResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(TestJson.parse(progressedDetailResponse.getBody()).path("isSaved").asBoolean())
+        .isTrue();
+    assertThat(
+            TestJson.parse(progressedDetailResponse.getBody()).path("readingProgress").asDouble())
+        .isEqualTo(0.42);
+
+    ResponseEntity<String> readResponse =
+        testRestTemplate.exchange(
+            baseUrl + "/api/entries/" + entryId + "/read",
+            HttpMethod.POST,
+            authorizedEntity(token),
+            String.class);
+    assertThat(readResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+    ResponseEntity<String> updatedDetailResponse =
+        testRestTemplate.exchange(
+            baseUrl + "/api/entries/" + entryId,
+            HttpMethod.GET,
+            authorizedEntity(token),
+            String.class);
+    assertThat(updatedDetailResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(TestJson.parse(updatedDetailResponse.getBody()).path("isSaved").asBoolean())
+        .isTrue();
+    assertThat(TestJson.parse(updatedDetailResponse.getBody()).path("isRead").asBoolean()).isTrue();
+    assertThat(TestJson.parse(updatedDetailResponse.getBody()).path("readingProgress").asDouble())
+        .isEqualTo(1.0);
+
+    ResponseEntity<String> savedResponse =
+        testRestTemplate.exchange(
+            baseUrl + "/api/entries?view=saved",
+            HttpMethod.GET,
+            authorizedEntity(token),
+            String.class);
+    assertThat(savedResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(TestJson.parse(savedResponse.getBody()).path("items")).hasSize(1);
 
     ResponseEntity<String> noiseResponse =
         testRestTemplate.exchange(
@@ -105,6 +213,38 @@ class ServerE2ETest {
             String.class);
     assertThat(noiseResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(TestJson.parse(noiseResponse.getBody()).path("items")).hasSize(1);
+
+    ResponseEntity<String> sourceEntriesResponse =
+        testRestTemplate.exchange(
+            baseUrl + "/api/feed-sources/" + sourceId + "/entries",
+            HttpMethod.GET,
+            authorizedEntity(token),
+            String.class);
+    assertThat(sourceEntriesResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(TestJson.parse(sourceEntriesResponse.getBody()).path("items")).hasSize(2);
+
+    ResponseEntity<String> opmlResponse =
+        testRestTemplate.exchange(
+            baseUrl + "/api/feed-sources/opml",
+            HttpMethod.GET,
+            authorizedEntity(token),
+            String.class);
+    assertThat(opmlResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(opmlResponse.getBody()).contains("Sample Feed");
+    assertThat(opmlResponse.getBody()).contains("feed.xml");
+
+    ResponseEntity<String> duplicateImportResponse =
+        testRestTemplate.exchange(
+            baseUrl + "/api/feed-sources/opml/import",
+            HttpMethod.POST,
+            authorizedJsonEntity(
+                token, Map.of("opml", opmlResponse.getBody(), "refreshAfterImport", false)),
+            String.class);
+    assertThat(duplicateImportResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(TestJson.parse(duplicateImportResponse.getBody()).path("importedCount").asInt())
+        .isEqualTo(0);
+    assertThat(TestJson.parse(duplicateImportResponse.getBody()).path("skippedCount").asInt())
+        .isEqualTo(1);
 
     ResponseEntity<String> syncResponse =
         testRestTemplate.exchange(

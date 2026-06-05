@@ -5,12 +5,20 @@ public class FeedEntryListItem {
   private long id;
   private long sourceId;
   private String sourceName;
+  private String sourceIconUrl;
+  private String author;
   private String title;
   private String link;
   private String publishedAt;
   private String summary;
   private boolean read;
+  private boolean saved;
+  private double readingProgress;
+  private boolean noise;
   private boolean foreignLanguage;
+  private String filterStatus;
+  private String summaryStatus;
+  private String translationStatus;
   private String coverImageUrl;
 
   public long getId() {
@@ -35,6 +43,22 @@ public class FeedEntryListItem {
 
   public void setSourceName(String sourceName) {
     this.sourceName = sourceName;
+  }
+
+  public String getSourceIconUrl() {
+    return sourceIconUrl;
+  }
+
+  public void setSourceIconUrl(String sourceIconUrl) {
+    this.sourceIconUrl = sourceIconUrl;
+  }
+
+  public String getAuthor() {
+    return author;
+  }
+
+  public void setAuthor(String author) {
+    this.author = author;
   }
 
   public String getTitle() {
@@ -77,12 +101,60 @@ public class FeedEntryListItem {
     this.read = read;
   }
 
+  public boolean isSaved() {
+    return saved;
+  }
+
+  public void setSaved(boolean saved) {
+    this.saved = saved;
+  }
+
+  public double getReadingProgress() {
+    return readingProgress;
+  }
+
+  public void setReadingProgress(double readingProgress) {
+    this.readingProgress = readingProgress;
+  }
+
+  public boolean isNoise() {
+    return noise;
+  }
+
+  public void setNoise(boolean noise) {
+    this.noise = noise;
+  }
+
   public boolean isForeignLanguage() {
     return foreignLanguage;
   }
 
   public void setForeignLanguage(boolean foreignLanguage) {
     this.foreignLanguage = foreignLanguage;
+  }
+
+  public String getFilterStatus() {
+    return filterStatus;
+  }
+
+  public void setFilterStatus(String filterStatus) {
+    this.filterStatus = filterStatus;
+  }
+
+  public String getSummaryStatus() {
+    return summaryStatus;
+  }
+
+  public void setSummaryStatus(String summaryStatus) {
+    this.summaryStatus = summaryStatus;
+  }
+
+  public String getTranslationStatus() {
+    return translationStatus;
+  }
+
+  public void setTranslationStatus(String translationStatus) {
+    this.translationStatus = translationStatus;
   }
 
   public String getCoverImageUrl() {

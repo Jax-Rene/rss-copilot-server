@@ -3,7 +3,8 @@ package com.rsscopilot.server.http;
 import java.util.List;
 import java.util.Map;
 
-public record HttpResponseData(int statusCode, String body, Map<String, List<String>> headers) {
+public record HttpResponseData(
+    int statusCode, String body, Map<String, List<String>> headers, String finalUrl) {
 
   public String header(String name) {
     return headers.entrySet().stream()

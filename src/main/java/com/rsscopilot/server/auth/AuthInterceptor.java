@@ -4,6 +4,7 @@ import com.rsscopilot.server.common.UnauthorizedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.util.StringUtils;
+import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 public class AuthInterceptor implements HandlerInterceptor {
@@ -17,6 +18,10 @@ public class AuthInterceptor implements HandlerInterceptor {
   @Override
   public boolean preHandle(
       HttpServletRequest request, HttpServletResponse response, Object handler) {
+    if (CorsUtils.isPreFlightRequest(request)) {
+      return true;
+    }
+
     String authorization = request.getHeader("Authorization");
     if (!StringUtils.hasText(authorization) || !authorization.startsWith("Bearer ")) {
       throw new UnauthorizedException("missing bearer token");

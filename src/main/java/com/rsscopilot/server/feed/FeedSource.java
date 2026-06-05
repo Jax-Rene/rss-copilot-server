@@ -8,6 +8,7 @@ public class FeedSource {
   private String rssUrl;
   private String siteUrl;
   private String iconUrl;
+  private String folder;
   private boolean enabled;
   private String status;
   private String etag;
@@ -64,6 +65,14 @@ public class FeedSource {
 
   public void setIconUrl(String iconUrl) {
     this.iconUrl = iconUrl;
+  }
+
+  public String getFolder() {
+    return folder;
+  }
+
+  public void setFolder(String folder) {
+    this.folder = folder;
   }
 
   public boolean isEnabled() {

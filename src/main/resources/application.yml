@@ -29,6 +29,8 @@ mybatis:
     default-statement-timeout: 10
 
 app:
+  web:
+    allowed-origin-patterns: ${RSS_COPILOT_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*}
   auth:
     session-ttl-days: ${RSS_COPILOT_SESSION_TTL_DAYS:30}
   refresh:

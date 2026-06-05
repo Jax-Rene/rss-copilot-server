@@ -26,4 +26,16 @@ public class SettingsController {
       CurrentUser currentUser, @Valid @RequestBody AiSettingsRequest request) {
     return settingsService.updateAiSettings(currentUser, request);
   }
+
+  @PutMapping("/api/settings/appearance")
+  public AppearanceSettingsResponse updateAppearanceSettings(
+      CurrentUser currentUser, @Valid @RequestBody AppearanceSettingsRequest request) {
+    return settingsService.updateAppearanceSettings(currentUser, request);
+  }
+
+  @PutMapping("/api/settings/feeds")
+  public FeedSettingsResponse updateFeedSettings(
+      CurrentUser currentUser, @Valid @RequestBody FeedSettingsRequest request) {
+    return settingsService.updateFeedSettings(currentUser, request);
+  }
 }

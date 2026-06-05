@@ -34,21 +34,26 @@ public class SyncService {
 
   @Transactional(readOnly = true)
   public SyncBootstrapResponse bootstrap(CurrentUser currentUser) {
+    Instant serverTime = Instant.now();
     List<FeedSourceResponse> sources = feedSourceService.listSources(currentUser.id());
     List<EntryDetailResponse> entries = entryService.listEntryDetails(currentUser.id(), null);
     SettingsResponse settings = settingsService.getSettings(currentUser);
-    return new SyncBootstrapResponse(Instant.now(), sources, entries, settings);
+    return new SyncBootstrapResponse(serverTime, sources, entries, settings);
   }
 
   @Transactional(readOnly = true)
   public SyncChangesResponse changes(CurrentUser currentUser, Instant since) {
+    Instant serverTime = Instant.now();
     String sinceText = InstantMapper.toText(since);
+    String untilText = InstantMapper.toText(serverTime);
     List<FeedSourceResponse> sources =
-        feedSourceService.listSourcesUpdatedSince(currentUser.id(), sinceText);
-    List<EntryDetailResponse> entries = entryService.listEntryDetails(currentUser.id(), sinceText);
+        feedSourceService.listSourcesChangedBetween(currentUser.id(), sinceText, untilText);
+    List<EntryDetailResponse> entries =
+        entryService.listEntryDetails(currentUser.id(), sinceText, untilText);
     List<Long> deletedSourceIds =
-        syncTombstoneMapper.listDeletedIdsSince(currentUser.id(), "feed_source", sinceText);
+        syncTombstoneMapper.listDeletedIdsBetween(
+            currentUser.id(), "feed_source", sinceText, untilText);
     SettingsResponse settings = settingsService.getSettings(currentUser);
-    return new SyncChangesResponse(Instant.now(), sources, entries, deletedSourceIds, settings);
+    return new SyncChangesResponse(serverTime, sources, entries, deletedSourceIds, settings);
   }
 }

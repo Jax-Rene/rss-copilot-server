@@ -7,9 +7,12 @@ public class FeedSourceSummary {
   private String rssUrl;
   private String siteUrl;
   private String iconUrl;
+  private String folder;
   private boolean enabled;
   private String lastFetchedAt;
   private boolean hasError;
+  private String lastErrorAt;
+  private String lastErrorMessage;
   private int unreadCount;
 
   public long getId() {
@@ -52,6 +55,14 @@ public class FeedSourceSummary {
     this.iconUrl = iconUrl;
   }
 
+  public String getFolder() {
+    return folder;
+  }
+
+  public void setFolder(String folder) {
+    this.folder = folder;
+  }
+
   public boolean isEnabled() {
     return enabled;
   }
@@ -74,6 +85,22 @@ public class FeedSourceSummary {
 
   public void setHasError(boolean hasError) {
     this.hasError = hasError;
+  }
+
+  public String getLastErrorAt() {
+    return lastErrorAt;
+  }
+
+  public void setLastErrorAt(String lastErrorAt) {
+    this.lastErrorAt = lastErrorAt;
+  }
+
+  public String getLastErrorMessage() {
+    return lastErrorMessage;
+  }
+
+  public void setLastErrorMessage(String lastErrorMessage) {
+    this.lastErrorMessage = lastErrorMessage;
   }
 
   public int getUnreadCount() {

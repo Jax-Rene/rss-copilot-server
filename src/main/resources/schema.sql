@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS feed_source (
     rss_url TEXT NOT NULL,
     site_url TEXT,
     icon_url TEXT,
+    folder TEXT NOT NULL DEFAULT '未分组',
     enabled INTEGER NOT NULL,
     status TEXT NOT NULL,
     etag TEXT,
@@ -98,6 +99,10 @@ CREATE TABLE IF NOT EXISTS user_entry_state (
     entry_id INTEGER NOT NULL,
     is_read INTEGER NOT NULL,
     read_at TEXT,
+    is_saved INTEGER NOT NULL DEFAULT 0,
+    saved_at TEXT,
+    reading_progress REAL NOT NULL DEFAULT 0,
+    reading_progress_updated_at TEXT,
     updated_at TEXT NOT NULL,
     PRIMARY KEY (user_id, entry_id),
     FOREIGN KEY (user_id) REFERENCES user_account(id) ON DELETE CASCADE,
@@ -160,7 +165,9 @@ CREATE TABLE IF NOT EXISTS sync_tombstone (
 
 CREATE INDEX IF NOT EXISTS idx_feed_source_user_enabled ON feed_source(user_id, enabled);
 CREATE INDEX IF NOT EXISTS idx_feed_entry_user_published_at ON feed_entry(user_id, published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feed_entry_user_published_id ON feed_entry(user_id, published_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_feed_entry_user_noise ON feed_entry(user_id, filter_is_noise, published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feed_entry_user_noise_published_id ON feed_entry(user_id, filter_is_noise, published_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_feed_entry_source_published_id ON feed_entry(user_id, source_id, published_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_user_entry_state_user_updated_at ON user_entry_state(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_sync_tombstone_user_deleted_at ON sync_tombstone(user_id, deleted_at DESC);
-

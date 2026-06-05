@@ -1,6 +1,8 @@
 .git
 .idea
 target
+data
 rss-copilot.db
+*.db-shm
+*.db-wal
 *.iml
-

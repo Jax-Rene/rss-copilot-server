@@ -1,7 +1,10 @@
 package com.rsscopilot.server.config;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -17,6 +20,8 @@ public class AppProperties {
 
   @NotNull private final Ai ai = new Ai();
 
+  @NotNull private final Web web = new Web();
+
   public Auth getAuth() {
     return auth;
   }
@@ -31,6 +36,10 @@ public class AppProperties {
 
   public Ai getAi() {
     return ai;
+  }
+
+  public Web getWeb() {
+    return web;
   }
 
   public static class Auth {
@@ -79,6 +88,21 @@ public class AppProperties {
     }
   }
 
+  public static class Web {
+
+    @NotEmpty
+    private List<@NotBlank String> allowedOriginPatterns =
+        List.of("http://localhost:*", "http://127.0.0.1:*");
+
+    public List<String> getAllowedOriginPatterns() {
+      return allowedOriginPatterns;
+    }
+
+    public void setAllowedOriginPatterns(List<String> allowedOriginPatterns) {
+      this.allowedOriginPatterns = allowedOriginPatterns;
+    }
+  }
+
   public static class Bootstrap {
 
     @NotNull private final DefaultUser defaultUser = new DefaultUser();
@@ -90,7 +114,7 @@ public class AppProperties {
 
   public static class DefaultUser {
 
-    @NotBlank private String email = "demo@rsscopilot.local";
+    @Email @NotBlank private String email = "demo@rsscopilot.local";
 
     @NotBlank private String password = "changeme123";
 

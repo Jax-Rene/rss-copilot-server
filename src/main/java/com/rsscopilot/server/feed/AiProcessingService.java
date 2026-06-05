@@ -5,12 +5,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rsscopilot.server.ai.AiGenerationResult;
 import com.rsscopilot.server.ai.AiProvider;
+import com.rsscopilot.server.common.DiagnosticSanitizer;
 import com.rsscopilot.server.common.InstantMapper;
 import com.rsscopilot.server.setting.AiPromptConfig;
 import com.rsscopilot.server.setting.SettingsService;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -50,6 +52,10 @@ public class AiProcessingService {
     aiProcessingExecutor.execute(() -> processEntry(userId, entryId));
   }
 
+  public void enqueueContentRefresh(long userId, long entryId) {
+    aiProcessingExecutor.execute(() -> processContentRefresh(userId, entryId));
+  }
+
   @Transactional
   public void processEntry(long userId, long entryId) {
     FeedEntry feedEntry = feedEntryMapper.findByIdAndUserId(entryId, userId);
@@ -58,12 +64,43 @@ public class AiProcessingService {
     }
     AiPromptConfig aiPromptConfig = settingsService.getAiPromptConfig(userId);
     if (!StringUtils.hasText(aiPromptConfig.getApiKey())) {
-      markSkipped(userId, entryId, aiPromptConfig);
+      processIfEntryStillExists(
+          userId, entryId, () -> markSkipped(userId, entryId, aiPromptConfig));
       return;
     }
-    processFilter(feedEntry, aiPromptConfig);
-    processSummary(feedEntry, aiPromptConfig);
-    processTranslation(feedEntry, aiPromptConfig);
+    processIfEntryStillExists(userId, entryId, () -> processFilter(feedEntry, aiPromptConfig));
+    processIfEntryStillExists(userId, entryId, () -> processSummary(feedEntry, aiPromptConfig));
+    processIfEntryStillExists(userId, entryId, () -> processTranslation(feedEntry, aiPromptConfig));
+  }
+
+  @Transactional
+  public void processContentRefresh(long userId, long entryId) {
+    FeedEntry feedEntry = feedEntryMapper.findByIdAndUserId(entryId, userId);
+    if (feedEntry == null) {
+      return;
+    }
+    AiPromptConfig aiPromptConfig = settingsService.getAiPromptConfig(userId);
+    if (!StringUtils.hasText(aiPromptConfig.getApiKey())) {
+      processIfEntryStillExists(
+          userId, entryId, () -> markContentRefreshSkipped(userId, entryId, aiPromptConfig));
+      return;
+    }
+    processIfEntryStillExists(userId, entryId, () -> processSummary(feedEntry, aiPromptConfig));
+    processIfEntryStillExists(userId, entryId, () -> processTranslation(feedEntry, aiPromptConfig));
+  }
+
+  private void processIfEntryStillExists(long userId, long entryId, Runnable action) {
+    if (feedEntryMapper.findByIdAndUserId(entryId, userId) == null) {
+      return;
+    }
+    try {
+      action.run();
+    } catch (DataAccessException exception) {
+      if (feedEntryMapper.findByIdAndUserId(entryId, userId) == null) {
+        return;
+      }
+      throw exception;
+    }
   }
 
   private void processFilter(FeedEntry feedEntry, AiPromptConfig aiPromptConfig) {
@@ -91,20 +128,16 @@ public class AiProcessingService {
           nowText);
     } catch (Exception exception) {
       String nowText = InstantMapper.toText(now);
+      String failureMessage = aiFailureMessage("filter", exception);
       feedEntryMapper.updateFilterProjection(
-          feedEntry.getId(),
-          feedEntry.getUserId(),
-          "FAILED",
-          false,
-          exception.getMessage(),
-          nowText);
+          feedEntry.getId(), feedEntry.getUserId(), "FAILED", false, failureMessage, nowText);
       aiResultFilterMapper.upsert(
           feedEntry.getUserId(),
           feedEntry.getId(),
           null,
           "FAILED",
           false,
-          exception.getMessage(),
+          failureMessage,
           null,
           nowText);
     }
@@ -172,7 +205,7 @@ public class AiProcessingService {
       AiGenerationResult result =
           aiProvider.generate(
               aiPromptConfig.getApiKey(),
-              aiPromptConfig.getTranslationPrompt(),
+              translationSystemPrompt(aiPromptConfig),
               buildUserPrompt(feedEntry));
       List<TranslationSegment> translationSegments =
           objectMapper.readValue(
@@ -228,6 +261,16 @@ public class AiProcessingService {
         userId, entryId, null, "SKIPPED", aiPromptConfig.getOutputLanguage(), null, null, nowText);
   }
 
+  private void markContentRefreshSkipped(long userId, long entryId, AiPromptConfig aiPromptConfig) {
+    String nowText = InstantMapper.toText(Instant.now());
+    feedEntryMapper.updateSummaryProjection(entryId, userId, "SKIPPED", null, nowText);
+    feedEntryMapper.updateTranslationProjection(
+        entryId, userId, "SKIPPED", aiPromptConfig.getOutputLanguage(), null, nowText);
+    aiResultSummaryMapper.upsert(userId, entryId, null, "SKIPPED", null, null, nowText);
+    aiResultTranslationMapper.upsert(
+        userId, entryId, null, "SKIPPED", aiPromptConfig.getOutputLanguage(), null, null, nowText);
+  }
+
   private String buildUserPrompt(FeedEntry feedEntry) {
     String content =
         StringUtils.hasText(feedEntry.getContentText())
@@ -240,5 +283,27 @@ public class AiProcessingService {
             %s
             """
         .formatted(feedEntry.getTitle(), feedEntry.getLink(), content);
+  }
+
+  static String translationSystemPrompt(AiPromptConfig aiPromptConfig) {
+    String targetLanguage = aiPromptConfig.getOutputLanguage();
+    if (!StringUtils.hasText(targetLanguage)) {
+      return aiPromptConfig.getTranslationPrompt();
+    }
+    return """
+        %s
+
+        Target language: %s.
+        Translate every translation field into the target language above.
+        Keep the response format required by the prompt.
+        """
+        .formatted(aiPromptConfig.getTranslationPrompt(), targetLanguage.trim());
+  }
+
+  static String aiFailureMessage(String phase, Exception exception) {
+    if (StringUtils.hasText(exception.getMessage())) {
+      return DiagnosticSanitizer.redact(exception.getMessage());
+    }
+    return "ai " + phase + " failed: " + exception.getClass().getSimpleName();
   }
 }
